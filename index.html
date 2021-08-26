@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <title>Title</title>
+    <!-- Required meta tags -->
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    
+    <!-- Bootstrap CSS -->
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css" integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
+</head>
+<body>
+    
+    <div class="row ">
+        <div class="form-group col-6">     
+            <input type="text"
+            class="form-control" name="" id="VideoId" aria-describedby="helpId" placeholder="Ex.: youtube.com/">
+            
+        </div>
+        <div class="form-group col-6">     
+            <button class="btn btn-success" onclick="RequireLoadVideo()">Carregar Video</button>
+            
+        </div>
+    </div>  
+    <button class="btn btn-success" onclick="Play()">Play</button> 
+    <button class="btn btn-success" onclick="Pause()">Pause</button>    
+    
+    <div id="player"></div>
+    
+    <div class="row text-white">
+        <div class="col-sm m-2 bg-dark ">
+            <h5 class="text-center">ServerLog</h5>
+            <div id="ServerLog">
+                
+            </div>
+        </div>
+        <div class="col-sm m-2 bg-dark ">
+            <h5 class="text-center">ClientLog</h5>
+            <div id="ClientLog">
+                
+            </div>
+        </div>
+        <div class="col-sm m-2 bg-dark ">
+            <h5 class="text-center">Chat</h5>
+            <div id="ChatLog">
+                
+            </div>
+        </div>
+    </div>
+    
+    
+    
+    
+    <!-- Optional JavaScript -->
+    <!-- jQuery first, then Popper.js, then Bootstrap JS -->
+    <script src="https://code.jquery.com/jquery-3.3.1.slim.min.js" integrity="sha384-q8i/X+965DzO0rT7abK41JStQIAqVgRVzpbzo5smXKp4YfRvH+8abtTE1Pi6jizo" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.7/umd/popper.min.js" integrity="sha384-UO2eT0CpHqdSJQ6hJty5KVphtPhzWj9WO1clHTMGa3JDZwrnQq4sF86dIHNDz0W1" crossorigin="anonymous"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/js/bootstrap.min.js" integrity="sha384-JjSmVgyd0p3pXB1rRibZUAYoIIy6OrQ6VrjIEaFf/nJGzIxFDsf4x0xIM+B07jRM" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/3.1.7/signalr.min.js"></script>
+    <script src="youtube.js"></script>
+    
+</body>
+</html>
+
+
+<script> 
+    var alreadyChanged = false;
+    var player;
+    const connection = new signalR.HubConnectionBuilder()
+    .withUrl("https://localhost:44337/VideoPlayerHub")
+    .configureLogging(signalR.LogLevel.Information)
+    .build();
+    
+    async function start() {
+        try {
+            await connection.start();
+            console.log("SignalR Connected.");    
+        } catch (err) {
+            console.log(err);
+            setTimeout(start, 5000);
+        }
+    };
+    
+    connection.onclose(async () => {
+        await start();
+    });    
+    
+    start();  
+    
+    function Play(){
+        handleStateChanged(1);
+        
+        LogClient("play")
+    }
+    
+    
+    function Pause(){
+        handleStateChanged(2);
+        
+        LogClient("pause")
+    }
+    
+    connection.on("Play", () => {      
+        
+        console.log('play');
+        player.playVideo();
+    });
+    
+    connection.on("Pause", () => { 
+        
+        console.log('pause');    
+        player.pauseVideo();
+    });  
+    
+    connection.on("Log", (text) => { 
+        
+        $("#ServerLog").append("teste");
+    });  
+    
+    connection.on("LoadVideo", (videoId) => {     
+        console.log("videoID" + videoId);
+        
+        if(player)
+        player.clearVideo();
+        //    $('#player').remove();
+        player = new YT.Player('player', {
+            height: '360',
+            width: '640',
+            videoId: videoId,
+            events: {
+                'onReady': () => console.log('ready')                
+            }
+        });
+        
+    });      
+    
+    
+    function RequireLoadVideo(){  
+        let videoIdInput = $("#VideoId").val();
+        connection.invoke("LoadVideo", videoIdInput);  
+    }
+    
+    function handleStateChanged(valor){        
+        
+        connection.invoke("HandleVideoStateChanged", valor);
+        
+    }
+    
+    
+    function LogClient(text){
+        let date = new Date();
+        
+        let hours = date.getHours();
+        let minutes = date.getMinutes();
+        let seconds = date.getSeconds();  
+        
+        
+        $("#ClientLog").append(`${hours}:${minutes}:${seconds} - ` + "teste" + "<br>");
+    }
+</script>
+
+
+<style>
+    .row .col-sm{
+        min-height: 200px;
+        max-height: 400px;
+        overflow-y: auto;
+    }
+</style>
